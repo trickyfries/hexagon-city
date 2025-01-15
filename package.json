@@ -1,0 +1,21 @@
+{
+  "name": "p5-template",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "serve": "vite preview",
+    "tsc": "tsc"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/p5": "^1.7.6",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  },
+  "dependencies": {
+    "d3": "^7.9.0",
+    "honeycomb-grid": "^4.1.5",
+    "p5": "^1.11.2"
+  }
+}
