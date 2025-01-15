@@ -92,7 +92,7 @@ const app = new p5(p5Instance => {
       secondPoints.push([c.x, c.y])
     }
 
-    delaunay2 = new d3.Delaunay(Float64Array.from(secondPoints.flat()));
+    // delaunay2 = new d3.Delaunay(Float64Array.from(secondPoints.flat()));
 
 
 
@@ -198,7 +198,7 @@ const app = new p5(p5Instance => {
     //   const t0 = delaunay2.triangles[index * 3 + 0];
     //   const t1 = delaunay2.triangles[index * 3 + 1];
     //   const t2 = delaunay2.triangles[index * 3 + 2];
-    //   p.stroke(255, 0, 0, 50)
+    //   p.stroke(255, 0, 0, 100)
     //   p.fill(255, 0, 0, 10)
     //   p.beginShape()
     //   const p1 = [delaunay2.points[t0 * 2], delaunay2.points[t0 * 2 + 1]]
