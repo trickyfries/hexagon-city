@@ -16,6 +16,7 @@
   "dependencies": {
     "d3": "^7.9.0",
     "honeycomb-grid": "^4.1.5",
-    "p5": "^1.11.2"
+    "p5": "^1.11.2",
+    "p5-template": "file:"
   }
 }
