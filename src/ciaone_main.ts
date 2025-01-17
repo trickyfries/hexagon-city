@@ -127,8 +127,8 @@ const app = new p5((p5Instance) => {
         d3
           .forceLink(graph.links)
           .id((d) => d.index as number)
-          .distance((d) => 1)
-          .iterations(10)
+          .distance((d) => d.index / 50)
+          .iterations(20)
           .strength((link) => 1)
       )
       .force("charge", d3.forceManyBody())

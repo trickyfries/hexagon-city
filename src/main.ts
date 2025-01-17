@@ -27,14 +27,20 @@ const app = new p5((p5Instance) => {
 
   let heights: { hex: Hex; value: number }[] = [];
   let targetHeights: { hex: Hex; value: number }[] = [];
+  let randomHeights: { hex: Hex; value: number }[] = [];
 
   let initialPoints: number[][];
 
-  const centerCoord = 20;
-  const coordRadius = centerCoord / 2;
+  const centerCoord = 18;
+  const coordRadius = p.ceil(centerCoord / 2);
+
+  const MAX_HEIGHT = 300;
+  const transform = { x: 0, y: 0 };
+
+  const canvasSize = { x: 1000, y: 800 };
 
   p.setup = function setup() {
-    p.createCanvas(p.windowWidth, p.windowHeight);
+    p.createCanvas(canvasSize.x, canvasSize.y);
 
     // 1. Create a hex class:
     const Tile = defineHex({
@@ -48,19 +54,24 @@ const app = new p5((p5Instance) => {
       spiral({ start: [centerCoord, centerCoord], radius: coordRadius })
     );
 
+    transform.x =
+      -(grid.getHex([centerCoord, centerCoord])?.x || 0) + p.width / 2;
+    transform.y =
+      -(grid.getHex([centerCoord, centerCoord])?.y || 0) + (p.height * 2) / 3;
+
     initialPoints = [];
     grid.forEach((hex) => initialPoints.push([hex.x, hex.y]));
-    grid.forEach((hex) =>
-      targetHeights.push({
-        hex,
-        value:
-          grid?.distance({ q: centerCoord, r: centerCoord }, {
-            q: hex.q,
-            r: hex.r,
-          } as number) *
-          (20 * p.random(0.9, 1.1)),
-      })
-    );
+    // grid.forEach((hex) =>
+    //   targetHeights.push({
+    //     hex,
+    //     value:
+    //       grid?.distance({ q: centerCoord, r: centerCoord }, {
+    //         q: hex.q,
+    //         r: hex.r,
+    //       } as number) *
+    //       (20 * p.random(0.9, 1.1)),
+    //   })
+    // );
     grid.forEach((hex) => heights.push({ hex, value: 0 }));
 
     // let coolPoints = [...Array(30)].map((n, ringIndex) => {
@@ -115,20 +126,58 @@ const app = new p5((p5Instance) => {
     }
 
     // delaunay2 = new d3.Delaunay(Float64Array.from(secondPoints.flat()));
-  };
-
-  p.draw = function draw() {
-    p.resizeCanvas(p.windowWidth, p.windowHeight);
-
-    p.background(0);
-    p.stroke(255);
-    p.strokeWeight(1);
 
     if (grid) {
       let selectedHex = grid.pointToHex(
         { x: p.mouseX, y: p.mouseY },
         { allowOutside: false }
       );
+      randomHeights = [];
+
+      if (!selectedHex) {
+        selectedHex = grid.getHex({ q: centerCoord, r: centerCoord });
+      }
+
+      if (selectedHex) {
+        grid.forEach((hex) =>
+          randomHeights.push({
+            hex,
+            value: MAX_HEIGHT * p.random(-0.1, 0.1),
+          })
+        );
+      }
+    }
+  };
+
+  p.draw = function draw() {
+    p.resizeCanvas(canvasSize.x, canvasSize.y);
+
+    p.background(0);
+    p.stroke(255);
+    p.strokeWeight(1.5);
+
+    p.translate(transform.x, transform.y);
+
+    if (grid) {
+      // let angle = p.radians(p.frameCount * 2);
+
+      // let coord = {
+      //   q: p.floor(centerCoord + (p.sin(angle) * coordRadius) / 2),
+      //   r: p.floor(centerCoord + (p.cos(angle) * coordRadius) / 2),
+      // };
+
+      // console.log(coord, angle);
+
+      // let selectedHex = grid.getHex(
+      //   { q: coord.q, r: coord.r },
+      //   { allowOutside: false }
+      // );
+
+      let selectedHex = grid.pointToHex(
+        { x: p.mouseX - transform.x, y: p.mouseY - transform.y },
+        { allowOutside: false }
+      );
+
       targetHeights = [];
 
       if (!selectedHex) {
@@ -141,260 +190,291 @@ const app = new p5((p5Instance) => {
             hex,
             value:
               // grid?.distance({ q: 12, r: 12 }, {
-              grid?.distance({ q: selectedHex.q, r: selectedHex.r }, {
-                q: hex.q,
-                r: hex.r,
-              } as number) * 20,
+              (() => {
+                const dist = grid?.distance(
+                  { q: selectedHex.q, r: selectedHex.r },
+                  {
+                    q: hex.q,
+                    r: hex.r,
+                  }
+                ) as number;
+
+                return p.map(dist, 0, coordRadius * 2, 0, MAX_HEIGHT);
+              })(),
             // (-20 * p.random(-1, 1)),
           })
         );
       }
-    }
 
-    heights.map(
-      (h) =>
-        (h.value = this.lerp(
-          h.value,
-          targetHeights.find((n) => n.hex == h.hex)?.value,
-          // 1
-          0.2
-        ))
-    );
+      heights.map(
+        (h) =>
+          (h.value = this.lerp(
+            h.value,
+            targetHeights.find((n) => n.hex == h.hex)?.value || 0,
+            // 1
+            0.2
+          ))
+      );
 
-    // initialPoints[0] = [p.mouseX, p.mouseY]
+      // initialPoints[0] = [p.mouseX, p.mouseY]
 
-    delaunay = new d3.Delaunay(Float64Array.from(initialPoints.flat()));
+      delaunay = new d3.Delaunay(Float64Array.from(initialPoints.flat()));
 
-    if (grid) {
-      initialPoints = [];
-      grid.forEach((hex) => initialPoints.push([hex.x, hex.y]));
+      if (grid) {
+        initialPoints = [];
+        grid.forEach((hex) => initialPoints.push([hex.x, hex.y]));
 
-      grid.forEach((hex) => {
-        p.noFill();
-        p.beginShape();
-        hex.corners.forEach((point) => {
-          p.vertex(point.x, point.y);
+        grid.forEach((hex) => {
+          p.noFill();
+          p.beginShape();
+          hex.corners.forEach((point) => {
+            p.vertex(point.x, point.y);
+          });
+          p.endShape(p.CLOSE);
         });
-        p.endShape(p.CLOSE);
-      });
 
-      let index = 0;
+        let index = 0;
 
-      for (
-        let row = centerCoord - coordRadius;
-        row <= centerCoord + coordRadius * 2;
-        row++
-      ) {
         for (
-          let col = centerCoord - coordRadius;
-          col <= centerCoord + coordRadius;
-          col += 2
+          let row = centerCoord - coordRadius;
+          row <= centerCoord + coordRadius * 2;
+          row++
         ) {
           for (let pass = 0; pass <= 1; pass++) {
-            let hex = grid.getHex({ row: row, col: col + pass });
-            if (hex) {
-              let newHeight = heights.find((h) => h.hex == hex)?.value || 0;
-              // p.fill(255);
-              index++;
-              // p.fill(index * 7 - 100);
-              // p.stroke(0);
-              p.beginShape();
-              hex.corners.forEach((point) => {
-                p.vertex(point.x, point.y - newHeight);
-              });
-              p.endShape(p.CLOSE);
-              // LATO DESTRO
-              // p.fill(100);
+            for (
+              let col = p.floor((centerCoord - coordRadius) / 2) * 2;
+              col <= centerCoord + coordRadius;
+              col += 2
+            ) {
+              let hex = grid.getHex({ row: row, col: col + pass });
+              if (hex) {
+                const isSelectedHex = selectedHex == hex;
 
-              p.fill(0, 200);
+                let randomHeight =
+                  randomHeights.find((h) => h.hex == hex)?.value || 0;
+                let newHeight = heights.find((h) => h.hex == hex)?.value || 0;
 
-              p.quad(
-                hex.corners[1].x,
-                hex.corners[1].y,
-                hex.corners[1].x,
-                hex.corners[1].y - newHeight,
-                hex.corners[2].x,
-                hex.corners[2].y - newHeight,
-                hex.corners[2].x,
-                hex.corners[2].y
-              );
-              // LATO CENTRO
-              // p.fill(200);
-              p.quad(
-                hex.corners[2].x,
-                hex.corners[2].y,
-                hex.corners[2].x,
-                hex.corners[2].y - newHeight,
-                hex.corners[3].x,
-                hex.corners[3].y - newHeight,
-                hex.corners[3].x,
-                hex.corners[3].y
-              );
+                let finalHeight = p.max(randomHeight + newHeight, 0);
 
-              // LATO SINISTRO
-              // p.fill(150);
-              p.quad(
-                hex.corners[3].x,
-                hex.corners[3].y,
-                hex.corners[3].x,
-                hex.corners[3].y - newHeight,
-                hex.corners[4].x,
-                hex.corners[4].y - newHeight,
-                hex.corners[4].x,
-                hex.corners[4].y
-              );
+                // p.fill(0);
+                // p.stroke(255);
+                p.strokeWeight(1.5);
+
+                p.fill(p.map(finalHeight, 0, MAX_HEIGHT, 255, 125));
+
+                if (isSelectedHex) {
+                  p.fill(255, 255, 255);
+                }
+
+                // p.fill(255);
+
+                index++;
+                // p.fill(index * 7 - 100);
+                p.stroke(0);
+                p.beginShape();
+                hex.corners.forEach((point) => {
+                  p.vertex(point.x, point.y - finalHeight);
+                });
+                p.endShape(p.CLOSE);
+                // LATO DESTRO
+                p.fill(100);
+
+                // p.fill(0, 200);
+
+                p.quad(
+                  hex.corners[1].x,
+                  hex.corners[1].y,
+                  hex.corners[1].x,
+                  hex.corners[1].y - finalHeight,
+                  hex.corners[2].x,
+                  hex.corners[2].y - finalHeight,
+                  hex.corners[2].x,
+                  hex.corners[2].y
+                );
+                // LATO CENTRO
+                p.fill(200);
+                p.quad(
+                  hex.corners[2].x,
+                  hex.corners[2].y,
+                  hex.corners[2].x,
+                  hex.corners[2].y - finalHeight,
+                  hex.corners[3].x,
+                  hex.corners[3].y - finalHeight,
+                  hex.corners[3].x,
+                  hex.corners[3].y
+                );
+
+                // LATO SINISTRO
+                p.fill(150);
+                p.quad(
+                  hex.corners[3].x,
+                  hex.corners[3].y,
+                  hex.corners[3].x,
+                  hex.corners[3].y - finalHeight,
+                  hex.corners[4].x,
+                  hex.corners[4].y - finalHeight,
+                  hex.corners[4].x,
+                  hex.corners[4].y
+                );
+
+                p.noFill();
+                p.stroke(255, 50);
+                p.strokeWeight(5);
+                // p.point(hex.x, hex.y - finalHeight);
+              }
             }
           }
         }
+
+        grid.forEach((hex) => {
+          // let newHeight = heights.find((h) => h.hex == hex)?.value || 0;
+          // p.fill(255, 0, 0);
+          // p.beginShape();
+          // hex.corners.forEach((point) => {
+          //   p.vertex(point.x, point.y - newHeight);
+          // });
+          // p.endShape(p.CLOSE);
+          // p.quad(
+          //   hex.corners[1].x,
+          //   hex.corners[1].y,
+          //   hex.corners[1].x,
+          //   hex.corners[1].y - newHeight,
+          //   hex.corners[2].x,
+          //   hex.corners[2].y - newHeight,
+          //   hex.corners[2].x,
+          //   hex.corners[2].y
+          // );
+          // p.quad(
+          //   hex.corners[2].x,
+          //   hex.corners[2].y,
+          //   hex.corners[2].x,
+          //   hex.corners[2].y - newHeight,
+          //   hex.corners[3].x,
+          //   hex.corners[3].y - newHeight,
+          //   hex.corners[3].x,
+          //   hex.corners[3].y
+          // );
+          // p.quad(
+          //   hex.corners[3].x,
+          //   hex.corners[3].y,
+          //   hex.corners[3].x,
+          //   hex.corners[3].y - newHeight,
+          //   hex.corners[4].x,
+          //   hex.corners[4].y - newHeight,
+          //   hex.corners[4].x,
+          //   hex.corners[4].y
+          // );
+        });
+
+        // const centerHex = grid?.pointToHex(
+        //   { x: p.mouseX, y: p.mouseY },
+        //   { allowOutside: false }
+        // );
+
+        // if (centerHex) {
+        //   p.beginShape();
+        //   p.fill(255);
+        //   centerHex.corners.forEach((point) => {
+        //     p.vertex(point.x, point.y);
+        //   });
+
+        //   grid.traverse(ring({ center: [1, 2], radius: 2 }));
+        //   p.endShape(p.CLOSE);
+
+        //   const nears = [
+        //     Direction.N,
+        //     Direction.NE,
+        //     Direction.SE,
+        //     Direction.S,
+        //     Direction.SW,
+        //     Direction.NW,
+        //   ].map((dir) => {
+        //     return grid?.neighborOf([centerHex.q, centerHex.r], dir, {
+        //       allowOutside: false,
+        //     });
+        //   });
+
+        //   nears.forEach((hex) => {
+        //     p.fill(255, 50);
+        //     p.beginShape();
+        //     hex?.corners.forEach((point) => {
+        //       p.vertex(point.x, point.y);
+        //     });
+        //     p.endShape(p.CLOSE);
+        //   });
+        // }
       }
 
-      grid.forEach((hex) => {
-        // let newHeight = heights.find((h) => h.hex == hex)?.value || 0;
-        // p.fill(255, 0, 0);
-        // p.beginShape();
-        // hex.corners.forEach((point) => {
-        //   p.vertex(point.x, point.y - newHeight);
-        // });
-        // p.endShape(p.CLOSE);
-        // p.quad(
-        //   hex.corners[1].x,
-        //   hex.corners[1].y,
-        //   hex.corners[1].x,
-        //   hex.corners[1].y - newHeight,
-        //   hex.corners[2].x,
-        //   hex.corners[2].y - newHeight,
-        //   hex.corners[2].x,
-        //   hex.corners[2].y
-        // );
-        // p.quad(
-        //   hex.corners[2].x,
-        //   hex.corners[2].y,
-        //   hex.corners[2].x,
-        //   hex.corners[2].y - newHeight,
-        //   hex.corners[3].x,
-        //   hex.corners[3].y - newHeight,
-        //   hex.corners[3].x,
-        //   hex.corners[3].y
-        // );
-        // p.quad(
-        //   hex.corners[3].x,
-        //   hex.corners[3].y,
-        //   hex.corners[3].x,
-        //   hex.corners[3].y - newHeight,
-        //   hex.corners[4].x,
-        //   hex.corners[4].y - newHeight,
-        //   hex.corners[4].x,
-        //   hex.corners[4].y
-        // );
-      });
+      p.fill(255, 0);
 
-      // const centerHex = grid?.pointToHex(
-      //   { x: p.mouseX, y: p.mouseY },
-      //   { allowOutside: false }
-      // );
+      const { points, triangles, hull, halfedges } = delaunay;
 
-      // if (centerHex) {
-      //   p.beginShape();
-      //   p.fill(255);
-      //   centerHex.corners.forEach((point) => {
-      //     p.vertex(point.x, point.y);
-      //   });
+      for (let index = 0, n = points.length; index < n; index += 2) {
+        // p.point(points[index], points[index +  1]);
+      }
 
-      //   grid.traverse(ring({ center: [1, 2], radius: 2 }));
-      //   p.endShape(p.CLOSE);
+      // p.beginShape()
+      // for (let i = 0; i < hull.length; i += 1) {
+      //   const h = hull[i];
+      //   p.vertex(points[h * 2], points[h * 2 + 1]);
+      // }
+      // p.endShape(p.CLOSE)
 
-      //   const nears = [
-      //     Direction.N,
-      //     Direction.NE,
-      //     Direction.SE,
-      //     Direction.S,
-      //     Direction.SW,
-      //     Direction.NW,
-      //   ].map((dir) => {
-      //     return grid?.neighborOf([centerHex.q, centerHex.r], dir, {
-      //       allowOutside: false,
-      //     });
-      //   });
+      for (let index = 0, n = triangles.length; index < n; index += 1) {
+        // for (let index = 0, n = triangles.length; index < 0; index += 1) {
+        p.strokeWeight(1);
+        const t0 = triangles[index * 3 + 0];
+        const t1 = triangles[index * 3 + 1];
+        const t2 = triangles[index * 3 + 2];
+        // p.stroke(255, 0);
+        p.stroke(255, 50);
+        p.beginShape();
+        const p1 = [points[t0 * 2], points[t0 * 2 + 1]];
+        const p2 = [points[t1 * 2], points[t1 * 2 + 1]];
+        const p3 = [points[t2 * 2], points[t2 * 2 + 1]];
+        p.vertex(p1[0], p1[1]);
+        p.vertex(p2[0], p2[1]);
+        p.vertex(p3[0], p3[1]);
+        p.endShape(p.CLOSE);
+        p.strokeWeight(5);
+        const c = triangle_centroid(p1, p2, p3);
+        p.point(c.x, c.y);
+        // console.log(index)
+      }
 
-      //   nears.forEach((hex) => {
-      //     p.fill(255, 50);
-      //     p.beginShape();
-      //     hex?.corners.forEach((point) => {
-      //       p.vertex(point.x, point.y);
-      //     });
-      //     p.endShape(p.CLOSE);
-      //   });
+      // grid?.forEach((hex) => {
+      //   p.noFill();
+      //   p.strokeWeight(5);
+      //   p.point(hex.x, hex.y - heights.find((h) => h.hex == hex)?.value);
+      // });
+
+      // for (let index = 0, n = delaunay2.triangles.length; index < n; index += 1) {
+      //   p.strokeWeight(1);
+      //   const t0 = delaunay2.triangles[index * 3 + 0];
+      //   const t1 = delaunay2.triangles[index * 3 + 1];
+      //   const t2 = delaunay2.triangles[index * 3 + 2];
+      //   p.stroke(255, 0, 0, 100)
+      //   p.fill(255, 0, 0, 10)
+      //   p.beginShape()
+      //   const p1 = [delaunay2.points[t0 * 2], delaunay2.points[t0 * 2 + 1]]
+      //   const p2 = [delaunay2.points[t1 * 2], delaunay2.points[t1 * 2 + 1]]
+      //   const p3 = [delaunay2.points[t2 * 2], delaunay2.points[t2 * 2 + 1]]
+      //   p.vertex(p1[0], p1[1])
+      //   p.vertex(p2[0], p2[1])
+      //   p.vertex(p3[0], p3[1])
+      //   p.endShape(p.CLOSE)
+      //   p.strokeWeight(5)
+      //   // console.log(index)
+      // }
+
+      // for (let i = 0, n = halfedges.length; i < n; ++i) {
+      //   const j = halfedges[i];
+      //   if (j < i) continue;
+      //   const ti = triangles[i];
+      //   const tj = triangles[j];
+      //   p.stroke(255, 50)
+      //   p.line(points[ti * 2], points[ti * 2 + 1], points[tj * 2], points[tj * 2 + 1])
       // }
     }
-
-    p.fill(255, 0);
-
-    const { points, triangles, hull, halfedges } = delaunay;
-
-    for (let index = 0, n = points.length; index < n; index += 2) {
-      p.point(points[index], points[index + 1]);
-    }
-
-    // p.beginShape()
-    // for (let i = 0; i < hull.length; i += 1) {
-    //   const h = hull[i];
-    //   p.vertex(points[h * 2], points[h * 2 + 1]);
-    // }
-    // p.endShape(p.CLOSE)
-
-    for (let index = 0, n = triangles.length; index < n; index += 1) {
-      p.strokeWeight(1);
-      const t0 = triangles[index * 3 + 0];
-      const t1 = triangles[index * 3 + 1];
-      const t2 = triangles[index * 3 + 2];
-      // p.stroke(255, 0);
-      p.stroke(255, 50);
-      p.beginShape();
-      const p1 = [points[t0 * 2], points[t0 * 2 + 1]];
-      const p2 = [points[t1 * 2], points[t1 * 2 + 1]];
-      const p3 = [points[t2 * 2], points[t2 * 2 + 1]];
-      p.vertex(p1[0], p1[1]);
-      p.vertex(p2[0], p2[1]);
-      p.vertex(p3[0], p3[1]);
-      p.endShape(p.CLOSE);
-      p.strokeWeight(5);
-      const c = triangle_centroid(p1, p2, p3);
-      p.point(c.x, c.y);
-      // console.log(index)
-    }
-
-    grid?.forEach((hex) => {
-      p.noFill();
-      p.strokeWeight(5);
-      p.point(hex.x, hex.y - heights.find((h) => h.hex == hex)?.value);
-    });
-
-    // for (let index = 0, n = delaunay2.triangles.length; index < n; index += 1) {
-    //   p.strokeWeight(1);
-    //   const t0 = delaunay2.triangles[index * 3 + 0];
-    //   const t1 = delaunay2.triangles[index * 3 + 1];
-    //   const t2 = delaunay2.triangles[index * 3 + 2];
-    //   p.stroke(255, 0, 0, 100)
-    //   p.fill(255, 0, 0, 10)
-    //   p.beginShape()
-    //   const p1 = [delaunay2.points[t0 * 2], delaunay2.points[t0 * 2 + 1]]
-    //   const p2 = [delaunay2.points[t1 * 2], delaunay2.points[t1 * 2 + 1]]
-    //   const p3 = [delaunay2.points[t2 * 2], delaunay2.points[t2 * 2 + 1]]
-    //   p.vertex(p1[0], p1[1])
-    //   p.vertex(p2[0], p2[1])
-    //   p.vertex(p3[0], p3[1])
-    //   p.endShape(p.CLOSE)
-    //   p.strokeWeight(5)
-    //   // console.log(index)
-    // }
-
-    // for (let i = 0, n = halfedges.length; i < n; ++i) {
-    //   const j = halfedges[i];
-    //   if (j < i) continue;
-    //   const ti = triangles[i];
-    //   const tj = triangles[j];
-    //   p.stroke(255, 50)
-    //   p.line(points[ti * 2], points[ti * 2 + 1], points[tj * 2], points[tj * 2 + 1])
-    // }
   };
 }, document.getElementById("app")!);

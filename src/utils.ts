@@ -33,7 +33,7 @@ export function triangle_centroid(p1: number[], p2: number[], p3: number[]) {
   const by = p2[1];
   const cx = p3[0];
   const cy = p3[1];
-  const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+  // const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
   const x = (ax + bx + cx) / 3;
   const y = (ay + by + cy) / 3;
   return { x, y };
