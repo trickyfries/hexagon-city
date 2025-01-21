@@ -31,7 +31,7 @@ const app = new p5((p5Instance) => {
 
   let initialPoints: number[][];
 
-  const centerCoord = 18;
+  const centerCoord = 12;
   const coordRadius = p.ceil(centerCoord / 2);
 
   const MAX_HEIGHT = 300;
